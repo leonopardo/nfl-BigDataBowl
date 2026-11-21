@@ -42,42 +42,38 @@ export default function Blitz({ defensa, filtros }: { defensa: string; filtros: 
       <Seccion titulo="¿Cuántos rushers conviene mandar?" sub={defensa ? `Datos de la defensa de ${defensa}.` : 'Datos de toda la liga. Elija una defensa arriba para ver la de un equipo.'}>
         {cargando && !b && <Cargando />}
         <ErrorCaja texto={error} />
-        <div className="grid gap-4 md:grid-cols-5">
-          <div className="md:col-span-3">
-            <BlitzCampo rushers={n} />
-            <div className="no-imprimir mt-3 flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Número de rushers">
-              <span className="text-sm text-gray-300">Rushers:</span>
-              {OPCIONES.map((o) => (
-                <button key={o.n} role="radio" aria-checked={o.n === n} onClick={() => setN(o.n)}
-                  className={`h-10 w-10 rounded-full border-2 text-lg font-bold ${o.n === n ? 'border-white bg-rojo text-white' : 'border-gray-500 text-gray-200 hover:bg-gray-800'}`}>
-                  {o.n}{o.n === 7 ? '+' : ''}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="md:col-span-2">
-            {fila && fila.n > 0 ? (
-              <>
-                <p className="mb-2 text-sm text-gray-300">{fila.n.toLocaleString('es-MX')} jugadas con {fila.rushers} rushers{poco && <em className="ml-1 text-yellow-300">(pocas jugadas)</em>}</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <Dato etiqueta="jugadas con presión" valor={(fila.presion?.tasa ?? 0) * 100} sufijo="%" />
-                  <Dato etiqueta="yardas permitidas por pase" valor={fila.yardas ?? 0} />
-                  <Dato etiqueta="pases completos" valor={(fila.completo?.tasa ?? 0) * 100} sufijo="%" />
-                  <Dato etiqueta="sacks" valor={(fila.sack?.tasa ?? 0) * 100} sufijo="%" />
-                </div>
-                {base && n !== 4 && base.n > 0 && (
-                  <p className="aparece mt-3 rounded bg-neutral-800 p-3 text-sm text-gray-100">
-                    Comparado con mandar 4: presión {(((fila.presion?.tasa ?? 0) - (base.presion?.tasa ?? 0)) * 100).toFixed(1)} puntos {((fila.presion?.tasa ?? 0) >= (base.presion?.tasa ?? 0)) ? 'más' : 'menos'}, y {Math.abs((fila.yardas ?? 0) - (base.yardas ?? 0)).toFixed(1)} yardas {((fila.yardas ?? 0) <= (base.yardas ?? 0)) ? 'menos' : 'más'} permitidas por pase.
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-gray-300">No hay jugadas con {n} rushers y estos filtros.</p>
-            )}
-            {b && b.frecuencia_blitz != null && (
-              <p className="mt-3 text-sm text-gray-300">{defensa || 'La liga'} manda 5 o más rushers en el <strong className="text-white">{pct(b.frecuencia_blitz)}</strong> de los pases{defensa ? ` (la liga: ${pct(b.frecuencia_blitz_liga)})` : ''}.</p>
-            )}
-          </div>
+        <BlitzCampo rushers={n} />
+        <div className="no-imprimir mt-3 flex flex-wrap items-center justify-center gap-2" role="radiogroup" aria-label="Número de rushers">
+          <span className="text-sm text-gray-300">Rushers:</span>
+          {OPCIONES.map((o) => (
+            <button key={o.n} role="radio" aria-checked={o.n === n} onClick={() => setN(o.n)}
+              className={`h-11 w-11 rounded-full border-2 text-lg font-bold ${o.n === n ? 'border-white bg-rojo text-white' : 'border-gray-500 text-gray-200 hover:bg-gray-800'}`}>
+              {o.n}{o.n === 7 ? '+' : ''}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4">
+          {fila && fila.n > 0 ? (
+            <>
+              <p className="mb-2 text-sm text-gray-300">{fila.n.toLocaleString('es-MX')} jugadas con {fila.rushers} rushers{poco && <em className="ml-1 text-yellow-300">(pocas jugadas)</em>}</p>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <Dato etiqueta="jugadas con presión" valor={(fila.presion?.tasa ?? 0) * 100} sufijo="%" />
+                <Dato etiqueta="yardas permitidas por pase" valor={fila.yardas ?? 0} />
+                <Dato etiqueta="pases completos" valor={(fila.completo?.tasa ?? 0) * 100} sufijo="%" />
+                <Dato etiqueta="sacks" valor={(fila.sack?.tasa ?? 0) * 100} sufijo="%" />
+              </div>
+              {base && n !== 4 && base.n > 0 && (
+                <p className="aparece mt-3 rounded bg-neutral-800 p-3 text-sm text-gray-100">
+                  Comparado con mandar 4: presión {(((fila.presion?.tasa ?? 0) - (base.presion?.tasa ?? 0)) * 100).toFixed(1)} puntos {((fila.presion?.tasa ?? 0) >= (base.presion?.tasa ?? 0)) ? 'más' : 'menos'}, y {Math.abs((fila.yardas ?? 0) - (base.yardas ?? 0)).toFixed(1)} yardas {((fila.yardas ?? 0) <= (base.yardas ?? 0)) ? 'menos' : 'más'} permitidas por pase.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-gray-300">No hay jugadas con {n} rushers y estos filtros.</p>
+          )}
+          {b && b.frecuencia_blitz != null && (
+            <p className="mt-3 text-sm text-gray-300">{defensa || 'La liga'} manda 5 o más rushers en el <strong className="text-white">{pct(b.frecuencia_blitz)}</strong> de los pases{defensa ? ` (la liga: ${pct(b.frecuencia_blitz_liga)})` : ''}.</p>
+          )}
         </div>
       </Seccion>
 

@@ -19,16 +19,20 @@ interface Props {
 }
 
 const LOS = 50
+const CENTRO = 26.65
+const SEP = 4.4 // separación entre bloqueadores: es un diagrama, no está a escala real
 // Coordenadas en el campo (x a lo largo, y a lo ancho). El lado izquierdo del mariscal es y grande.
 const POS: Record<string, { x: number; y: number; r: number }> = {
-  LT: { x: LOS, y: 31.0, r: 1.55 },
-  LG: { x: LOS, y: 28.8, r: 1.55 },
-  C: { x: LOS, y: 26.6, r: 1.55 },
-  RG: { x: LOS, y: 24.4, r: 1.55 },
-  RT: { x: LOS, y: 22.2, r: 1.55 },
-  TE: { x: LOS, y: 19.6, r: 1.3 },
-  RB: { x: LOS - 6, y: 26.6, r: 1.3 },
+  LT: { x: LOS, y: CENTRO + 2 * SEP, r: 1.7 },
+  LG: { x: LOS, y: CENTRO + SEP, r: 1.7 },
+  C: { x: LOS, y: CENTRO, r: 1.7 },
+  RG: { x: LOS, y: CENTRO - SEP, r: 1.7 },
+  RT: { x: LOS, y: CENTRO - 2 * SEP, r: 1.7 },
+  TE: { x: LOS, y: CENTRO - 3 * SEP, r: 1.5 },
+  RB: { x: LOS - 9.8, y: CENTRO, r: 1.5 },
 }
+const DEF_Y = [CENTRO + 1.5 * SEP, CENTRO + 0.5 * SEP, CENTRO - 0.5 * SEP, CENTRO - 1.5 * SEP]
+const DEF_X = LOS + 4.4
 
 export const posCampo = (p: string) => POS[p]
 
@@ -50,23 +54,22 @@ export default function FormacionLinea({ valores, referencia, seleccion, onSelec
     }
   })
 
-  // Mariscal (referencia visual)
-  puntos.push({ id: 'qb', x: LOS - 3.2, y: 26.6, r: 1.3, color: '#facc15', etiqueta: 'QB', colorTexto: '#000' })
+  // Mariscal (referencia visual), detrás del centro con espacio para el texto de éste
+  puntos.push({ id: 'qb', x: LOS - 5.8, y: CENTRO, r: 1.5, color: '#facc15', etiqueta: 'QB', colorTexto: '#000' })
 
-  // Defensa decorativa: cuatro rushers que llegan hacia la línea
-  const defY = [31.6, 28.2, 25.0, 21.6]
-  defY.forEach((y, i) => puntos.push({ id: `d${i}`, x: LOS + 3, y, r: 0.9, color: '#ef4444', forma: 'triangulo', opacidad: 0.55 }))
+  // Defensa decorativa: cuatro rushers que llegan hacia la línea, por los huecos entre bloqueadores
+  DEF_Y.forEach((y, i) => puntos.push({ id: `d${i}`, x: DEF_X, y, r: 1.0, color: '#ef4444', forma: 'triangulo', opacidad: 0.55 }))
   puntos.push(...extra)
 
-  const lineas: Linea[] = defY.map((y, i) => ({
-    x1: LOS + 3, y1: y, x2: LOS + 0.9, y2: y + (26.6 - y) * 0.15, color: '#ef4444', grosor: 0.2, animada: true, flecha: true, opacidad: 0.5,
+  const lineas: Linea[] = DEF_Y.map((y) => ({
+    x1: DEF_X, y1: y, x2: LOS + 2.4, y2: y + (CENTRO - y) * 0.1, color: '#ef4444', grosor: 0.2, animada: true, flecha: true, opacidad: 0.5,
   }))
   for (const f of flechas) {
-    const d = defY[f.desde % defY.length]
+    const d = DEF_Y[f.desde % DEF_Y.length]
     const h = POS[f.hasta]
     if (!h) continue
-    lineas.push({ x1: LOS + 3, y1: d, x2: h.x + 1.4, y2: h.y, color: '#fde047', grosor: 0.35, animada: true, flecha: true, etiqueta: f.etiqueta })
+    lineas.push({ x1: DEF_X, y1: d, x2: h.x + h.r + 0.9, y2: h.y, color: '#fde047', grosor: 0.35, animada: true, flecha: true, etiqueta: f.etiqueta })
   }
 
-  return <Cancha x0={LOS - 8} x1={LOS + 7} puntos={puntos} lineas={lineas} scrimmage={LOS} alt={alt} suave />
+  return <Cancha x0={LOS - 14} x1={LOS + 10} y0={6} y1={47.3} puntos={puntos} lineas={lineas} scrimmage={LOS} alt={alt} suave maxVh={70} />
 }

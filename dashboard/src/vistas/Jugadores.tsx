@@ -37,7 +37,7 @@ function mapaDuelo(d: Duelos, tipo: string): { valores: Record<string, ValorPos>
   const tot = filas.reduce((s, m) => s + m.n, 0)
   const pres = filas.reduce((s, m) => s + m.presiono, 0)
   const valores: Record<string, ValorPos> = {}
-  for (const m of filas) valores[m.posicion] = { valor: m.tasa, muestra: m.muestra, texto: `${pct(m.tasa, 0)} (${m.n})` }
+  for (const m of filas) valores[m.posicion] = { valor: m.tasa, muestra: m.muestra, texto: pct(m.tasa, 0) }
   return { valores, referencia: tot ? pres / tot : 0.1 }
 }
 
@@ -81,7 +81,7 @@ export default function Jugadores({ equipo, filtros }: { equipo: string; filtros
           <div className="grid gap-4 md:grid-cols-5">
             <div className="md:col-span-3">
               <FormacionLinea valores={mapa.valores} referencia={mapa.referencia} seleccion={sel} onSeleccion={setSel} alt={`Presión de los defensores de tipo ${tipo} contra cada posición de ${equipo}`} />
-              <Pie>En cada círculo: porcentaje de snaps en que el defensor presionó, y entre paréntesis el número de snaps. Rojo = le ganan más que a otras posiciones.</Pie>
+              <Pie>En cada círculo: porcentaje de snaps en que el defensor presionó. Rojo = le ganan más que a otras posiciones. Toque un círculo para ver cuántos snaps hay detrás.</Pie>
             </div>
             <div className="md:col-span-2">
               {celda ? (
