@@ -1,66 +1,52 @@
-# Presión sobre el mariscal: dónde atacar a tu rival
+# Plan de juego: presión sobre el mariscal
 
-**Elige al rival. En segundos ves en qué jugadas y con qué bloqueador su línea ofensiva se rompe, y una IA te dice cómo aprovecharlo.**
+**Elige un rival y la app te dice dónde se rompe su línea ofensiva, cuándo conviene mandar blitz y cuánto tiempo tiene su mariscal, con jugadas reales animadas sobre la cancha.**
 
-Proyecto del hackathon NFL Big Data Bowl, UNAM.
+Datos de la NFL (tracking de Next Gen Stats y scouting de PFF): 8,557 jugadas de pase de las semanas 1 a 8 de 2021.
+Una jugada cuenta como "con presión" si algún pass rusher logró hurry, hit o sack.
 
-![Reporte del rival: tasa de presión por posición de la línea ofensiva](docs/pantalla.png)
+## Lo que encontramos
 
-![Tasa de presión por down y distancia, y botón del resumen para el coach](docs/situacion.png)
-
-## Hallazgo
-
-Con 8,557 jugadas de pase de las semanas 1 a 8 de 2021 (datos de NFL Next Gen Stats y PFF):
-
-### 1. En tercera y larga, la presión llega en la mitad de las jugadas
-
-| Situación | Jugadas con presión |
-|---|---|
-| 1ª down | 31.7 % |
-| 3ª/4ª y media (4-6 yardas) | 44.3 % |
-| **3ª/4ª y larga (7+ yardas)** | **50.8 %** |
-
-Cuando el ataque necesita 7 yardas o más, el mariscal recibe presión en 1 de cada 2 jugadas (1,306 jugadas).
-Ahí es donde conviene enviar blitz.
-
-### 2. Los tackles son el punto débil de la línea
-
-Probabilidad de que cada posición permita presión en una jugada:
-
-- Tackle derecho (RT): **7.7 %**
-- Tackle izquierdo (LT): **7.3 %**
-- Guardias: 5.6 % (LG) y 6.5 % (RG)
-- Centro (C): **4.1 %**
-
-El RT permite presión casi el doble que el centro. Cargar el pass rush por los extremos rinde más que por el medio.
-
-### 3. Cada rival se rompe en un lugar distinto
-
-La tasa de presión permitida va de **26.2 % (TB)** a **46.3 % (NO)**.
-Ejemplo: Kansas City sufre **73.8 %** de presión en 3ª/4ª y larga (42 jugadas), y su RT es el eslabón más débil de la línea, con 9.1 %.
-Por eso el reporte se arma por equipo, y no con un promedio de la liga.
+- **La presión cuesta mucho.** Con presión se ganan 3.9 yardas por pase, y sin ella 8.1. Sin contar los sacks, la diferencia sigue siendo de 2.1 yardas y de 23 puntos de pases completos.
+- **El tiempo decide.** La mitad de los pases sale a los 2.7 segundos del snap. Si el mariscal suelta en menos de 2 segundos, completa el 76.5 % de los pases. Si tarda más de 3.5, solo el 38.5 %, y el 19.5 % acaba en sack.
+- **En tercera y larga la presión llega en la mitad de las jugadas.** Sube de 31.7 % en 1ª down a 50.8 % en 3ª/4ª y larga (7+ yardas).
+- **El blitz sube la presión, pero no siempre baja las yardas.** Con 4 rushers hay presión en 34.7 % de las jugadas, y con 5 en 46.3 %. Las yardas permitidas casi no cambian (6.5 contra 6.5), así que la app compara cada situación por separado.
+- **Los tackles son el punto débil de la línea.** El RT permite presión en 7.7 % de sus snaps y el LT en 7.3 %. El centro, en 4.1 %.
+- **Cada rival se rompe en un lugar distinto.** De 26.2 % (TB) a 46.3 % (NO) de jugadas con presión.
 
 ## Qué hace la app
 
-Está pensada para el cuerpo técnico defensivo que prepara el partido contra un rival.
+| Pantalla | Qué responde |
+|---|---|
+| **Rival** | ¿Dónde se rompe su línea? Mapa de calor sobre la formación, por situación y por formación |
+| **Costo de la presión** | ¿Cuántas yardas y pases completos le quita la presión a un ataque? Con animación de qué es un hurry, un hit y un sack |
+| **Blitz** | ¿Cuántos rushers conviene mandar en cada situación? Esquema animado de 3 a 7 rushers |
+| **Jugadores y duelos** | ¿Qué bloqueadores permiten más presión y qué tipo de defensor les gana más? |
+| **Cara a cara** | Mi defensa contra la línea de un rival: presión esperada, eslabones débiles y mejores rushers |
+| **Cancha en vivo** | Jugadas reales reproducidas cuadro por cuadro, con un semáforo de distancia del rusher al mariscal |
+| **Reloj** | Cuánto tarda el mariscal en soltar el balón y cuándo llega el primer defensor |
+| **Plan de juego** | Resumen en lenguaje simple, listo para imprimir, y un analista de IA para preguntas libres |
 
-1. Se elige el equipo rival.
-2. Se ven su tasa de presión, la gráfica por posición de la línea y la tabla por down y distancia.
-3. El botón **Resumen para el coach** envía el reporte a Amazon Nova, que devuelve de 4 a 5 recomendaciones: por qué lado cargar el pass rush y en qué downs mandar blitz, cada una con la cifra que la respalda.
+Todas las pantallas aceptan filtros de down, distancia, cuarto y marcador.
 
-Si la IA falla, el reporte sigue funcionando.
+**Para no engañarse:** cada porcentaje trae su margen de error (intervalo de Wilson al 95 %), los grupos con pocas jugadas se marcan, y las comparaciones entre equipos se ajustan hacia el promedio de la liga cuando hay pocos datos.
+Son solo 8 semanas, y las tasas describen lo ocurrido: no prueban que la presión cause el resultado.
 
-**Cómo definimos presión:** una jugada de pase cuenta como "con presión" si algún pass rusher registró hurry, hit o sack según PFF.
-Son solo 8 semanas, así que los grupos con pocas jugadas son poco estables, y la IA ignora los de menos de 15. Las tasas describen lo ocurrido, no demuestran la causa.
+## Inteligencia artificial (opcional)
+
+Amazon Nova, a través de Strands Agents, redacta el resumen del rival, el plan de juego y responde preguntas libres. En ese último caso Nova consulta funciones sobre los datos en lugar de inventar cifras.
+Si Nova no está disponible, la app genera el resumen y el plan con las mismas cifras, y todo lo demás funciona igual.
 
 ## Correrlo
 
-Para el resumen de IA, copiar `.env.example` a `.env` con las llaves del workshop.
+Para la IA, copiar `.env.example` a `.env` con las llaves del workshop.
 
 ```
 .venv/bin/uvicorn backend.main:app          # Windows: .venv/Scripts/uvicorn
 cd dashboard && npm install && npm run dev  # abre http://localhost:5173
 ```
 
-Backend FastAPI + pandas. Dashboard React, Vite, Tailwind y Recharts. IA con Amazon Nova en Bedrock, vía Strands Agents.
-Rutas principales: `GET /api/equipos`, `GET /api/rival/{equipo}` y `POST /api/rival/{equipo}/resumen`.
+Al arrancar, el backend lee en segundo plano los 122 archivos de tracking (menos de un minuto). Mientras tanto, la pantalla "Reloj" muestra el avance y las demás ya funcionan.
+Pruebas del backend: `.venv/bin/python -m pytest backend/tests`.
+
+Backend FastAPI + pandas + numpy. Dashboard React, Vite, Tailwind y Recharts. La cancha es SVG propio, sin librerías extra.

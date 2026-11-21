@@ -1,122 +1,87 @@
 """Reporte de scouting del rival: presiones permitidas por la protección de pase."""
-from functools import lru_cache
-from pathlib import Path
-
 import pandas as pd
 
-DATOS = Path(__file__).resolve().parent.parent / "data" / "nfl-big-data-bowl-regional-event-data-main" / "data"
+from . import datos as D
+from .estadistica import tasa
 
-LINEA = ["LT", "LG", "C", "RG", "RT"]
-
-
-def _grupo_posicion(pos: str) -> str:
-    if pos in LINEA:
-        return pos
-    if pos.startswith("TE"):
-        return "TE"
-    if pos.startswith(("HB", "FB")):
-        return "RB"
-    return "WR"
-
-
-def _situacion(down: int, ytg: int) -> str:
-    if down == 1:
-        return "1ª down"
-    d = "2ª" if down == 2 else "3ª/4ª"
-    if ytg <= 3:
-        return f"{d} y corta (1-3)"
-    if ytg <= 6:
-        return f"{d} y media (4-6)"
-    return f"{d} y larga (7+)"
-
-
-ORDEN_SITUACION = [
-    "1ª down",
-    "2ª y corta (1-3)", "2ª y media (4-6)", "2ª y larga (7+)",
-    "3ª/4ª y corta (1-3)", "3ª/4ª y media (4-6)", "3ª/4ª y larga (7+)",
-]
-ORDEN_POSICION = LINEA + ["TE", "RB", "WR"]
-
-
-@lru_cache(maxsize=1)
-def cargar():
-    """Lee los CSV una sola vez y prepara las tablas base."""
-    plays = pd.read_csv(DATOS / "plays.csv")
-    pff = pd.read_csv(DATOS / "pffScoutingData.csv")
-
-    # Presión por jugada: algún pass rusher logró hurry, hit o sack.
-    rush = pff[pff["pff_role"] == "Pass Rush"].copy()
-    rush["presion"] = rush[["pff_hurry", "pff_hit", "pff_sack"]].fillna(0).sum(axis=1) > 0
-    presion = rush.groupby(["gameId", "playId"])["presion"].any().rename("presion")
-    plays = plays.merge(presion, on=["gameId", "playId"], how="left")
-    plays["presion"] = plays["presion"].fillna(False).astype(bool)
-    plays["situacion"] = [_situacion(d, y) for d, y in zip(plays["down"], plays["yardsToGo"])]
-
-    # Bloqueadores: cada fila es un jugador protegiendo en una jugada.
-    bloq = pff[pff["pff_role"] == "Pass Block"].copy()
-    bloq = bloq.merge(plays[["gameId", "playId", "possessionTeam"]], on=["gameId", "playId"])
-    bloq["posicion"] = bloq["pff_positionLinedUp"].fillna("").map(_grupo_posicion)
-    for c in ["pff_hurryAllowed", "pff_hitAllowed", "pff_sackAllowed"]:
-        bloq[c] = bloq[c].fillna(0)
-    bloq["presiones"] = bloq["pff_hurryAllowed"] + bloq["pff_hitAllowed"] + bloq["pff_sackAllowed"]
-    return plays, bloq
+ORDEN_POSICION = D.ORDEN_POSICION
+ORDEN_SITUACION = D.ORDEN_SITUACION
+LINEA = D.LINEA
 
 
 def equipos() -> list[str]:
-    plays, _ = cargar()
-    return sorted(plays["possessionTeam"].unique().tolist())
+    return D.equipos()
 
 
-def _tabla(df: pd.DataFrame, columna: str, orden: list[str]) -> list[dict]:
-    g = df.groupby(columna)["presion"].agg(jugadas="size", tasa_presion="mean").reset_index()
-    g[columna] = pd.Categorical(g[columna], categories=orden, ordered=True)
-    g = g.sort_values(columna)
-    return [
-        {"situacion": str(getattr(r, columna)), "jugadas": int(r.jugadas), "tasa_presion": round(float(r.tasa_presion), 3)}
-        for r in g.itertuples()
-    ]
+def _ordenar(df: pd.DataFrame, col: str, orden: list[str]) -> pd.DataFrame:
+    df = df.copy()
+    df[col] = pd.Categorical(df[col], categories=orden, ordered=True)
+    return df.sort_values(col)
 
 
-def reporte(equipo: str) -> dict | None:
-    plays, bloq = cargar()
-    jp = plays[plays["possessionTeam"] == equipo]
-    if jp.empty:
+def reporte(equipo: str, f: D.Filtros = D.Filtros()) -> dict | None:
+    d = D.cargar()
+    if equipo not in set(d.plays["possessionTeam"]):
         return None
-    bq = bloq[bloq["possessionTeam"] == equipo]
 
+    liga_p = D.filtrar(d.plays, f)
+    jp = liga_p[liga_p["possessionTeam"] == equipo]
+    liga_b = D.restringir(d.bloq, liga_p)
+    bq = liga_b[liga_b["possessionTeam"] == equipo]
+
+    # Presión permitida por posición, con la tasa de la liga como referencia
+    liga_pos = liga_b.groupby("posicion").agg(snaps=("presiones", "size"), pres=("presiones", "sum"))
     pos = bq.groupby("posicion").agg(
-        snaps=("presiones", "size"),
-        presiones=("presiones", "sum"),
-        sacks=("pff_sackAllowed", "sum"),
+        snaps=("presiones", "size"), presiones=("presiones", "sum"), sacks=("pff_sackAllowed", "sum")
     ).reset_index()
-    pos["tasa"] = pos["presiones"] / pos["snaps"]
-    pos["posicion"] = pd.Categorical(pos["posicion"], categories=ORDEN_POSICION, ordered=True)
-    pos = pos.sort_values("posicion")
+    por_posicion = []
+    for r in _ordenar(pos, "posicion", ORDEN_POSICION).itertuples():
+        t = tasa(r.presiones, r.snaps)
+        lp = liga_pos.loc[r.posicion] if r.posicion in liga_pos.index else None
+        por_posicion.append({
+            "posicion": str(r.posicion), "snaps": int(r.snaps), "presiones": int(r.presiones), "sacks": int(r.sacks),
+            "tasa": round(float(r.presiones) / r.snaps, 3),
+            "ic_bajo": t["ic_bajo"], "ic_alto": t["ic_alto"], "muestra": t["muestra"],
+            "tasa_liga": None if lp is None else round(float(lp.pres) / float(lp.snaps), 3),
+        })
 
-    forma = jp.groupby("offenseFormation")["presion"].agg(jugadas="size", tasa_presion="mean").reset_index()
+    # Por situación (down y distancia)
+    liga_sit = liga_p.groupby("situacion")["presion"].mean()
+    sit = jp.groupby("situacion")["presion"].agg(jugadas="size", k="sum").reset_index()
+    por_situacion = []
+    for r in _ordenar(sit, "situacion", ORDEN_SITUACION).itertuples():
+        t = tasa(r.k, r.jugadas)
+        por_situacion.append({
+            "situacion": str(r.situacion), "jugadas": int(r.jugadas), "tasa_presion": round(float(r.k) / r.jugadas, 3),
+            "ic_bajo": t["ic_bajo"], "ic_alto": t["ic_alto"], "muestra": t["muestra"],
+            "tasa_liga": round(float(liga_sit.get(r.situacion)), 3) if r.situacion in liga_sit.index else None,
+        })
+
+    # Por formación
+    liga_for = liga_p.groupby("offenseFormation")["presion"].mean()
+    forma = jp.groupby("offenseFormation")["presion"].agg(jugadas="size", k="sum").reset_index()
     forma = forma[forma["jugadas"] >= 10].sort_values("jugadas", ascending=False)
+    por_formacion = []
+    for r in forma.itertuples():
+        t = tasa(r.k, r.jugadas)
+        por_formacion.append({
+            "formacion": r.offenseFormation, "jugadas": int(r.jugadas), "tasa_presion": round(float(r.k) / r.jugadas, 3),
+            "ic_bajo": t["ic_bajo"], "ic_alto": t["ic_alto"], "muestra": t["muestra"],
+            "tasa_liga": round(float(liga_for.get(r.offenseFormation)), 3) if r.offenseFormation in liga_for.index else None,
+        })
 
+    n = len(jp)
     return {
         "equipo": equipo,
-        "jugadas_pase": int(len(jp)),
-        "tasa_presion": round(float(jp["presion"].mean()), 3),
-        "tasa_presion_liga": round(float(plays["presion"].mean()), 3),
-        "por_posicion": [
-            {
-                "posicion": str(r.posicion),
-                "snaps": int(r.snaps),
-                "presiones": int(r.presiones),
-                "sacks": int(r.sacks),
-                "tasa": round(float(r.tasa), 3),
-            }
-            for r in pos.itertuples()
-        ],
-        "por_situacion": _tabla(jp, "situacion", ORDEN_SITUACION),
-        "por_formacion": [
-            {"formacion": r.offenseFormation, "jugadas": int(r.jugadas), "tasa_presion": round(float(r.tasa_presion), 3)}
-            for r in forma.itertuples()
-        ],
+        "filtros": f.como_dict(),
+        "jugadas_pase": int(n),
+        "tasa_presion": round(float(jp["presion"].mean()), 3) if n else 0.0,
+        "tasa_presion_liga": round(float(liga_p["presion"].mean()), 3) if len(liga_p) else 0.0,
+        "por_posicion": por_posicion,
+        "por_situacion": por_situacion,
+        "por_formacion": por_formacion,
     }
+
 
 def resumen_basico(r: dict) -> str:
     """Resumen sin IA con las mismas cifras del reporte (respaldo si Nova falla)."""

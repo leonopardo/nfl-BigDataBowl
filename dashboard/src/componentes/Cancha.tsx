@@ -1,0 +1,205 @@
+import type { ReactNode } from 'react'
+
+export const ANCHO = 53.3
+
+/**
+ * Cancha en SVG. Se trabaja con coordenadas del campo (x = a lo largo, y = a lo ancho, en yardas).
+ * La ofensiva avanza hacia ARRIBA, como en un diagrama de entrenador:
+ * el lado izquierdo de la pantalla es el lado izquierdo del mariscal (LT, LG...).
+ */
+export const px = (y: number) => ANCHO - y
+export const py = (x: number, x1: number) => x1 - x
+
+export interface Punto {
+  id: string | number
+  x: number
+  y: number
+  color: string
+  r?: number
+  etiqueta?: string
+  borde?: string
+  titulo?: string
+  orient?: number | null // grados, ya en el campo orientado
+  pulso?: boolean
+  forma?: 'circulo' | 'cuadro' | 'triangulo'
+  opacidad?: number
+  texto?: string // texto debajo del punto (por ejemplo un nombre)
+  colorTexto?: string
+  onClick?: () => void
+}
+
+export interface Linea {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  color: string
+  grosor?: number
+  punteada?: boolean
+  animada?: boolean
+  flecha?: boolean
+  etiqueta?: string
+  opacidad?: number
+}
+
+interface Props {
+  x0: number // yarda inferior visible
+  x1: number // yarda superior visible
+  puntos: Punto[]
+  lineas?: Linea[]
+  balon?: [number, number] | null
+  scrimmage?: number | null
+  suave?: boolean // transiciones CSS entre posiciones
+  anotaciones?: ReactNode // SVG extra, en unidades de pantalla
+  alt: string
+  className?: string
+}
+
+function marcasYarda(x0: number, x1: number): number[] {
+  const out: number[] = []
+  for (let x = Math.ceil(x0); x <= Math.floor(x1); x++) out.push(x)
+  return out
+}
+
+function numeroYarda(x: number): number | null {
+  if (x < 10 || x > 110 || (x - 10) % 10 !== 0) return null
+  const v = x - 10
+  return v <= 50 ? v : 100 - v
+}
+
+export default function Cancha({ x0, x1, puntos, lineas = [], balon, scrimmage, suave, anotaciones, alt, className }: Props) {
+  const alto = x1 - x0
+  const yardas = marcasYarda(x0, x1)
+
+  return (
+    <svg
+      viewBox={`0 0 ${ANCHO} ${alto}`}
+      role="img"
+      aria-label={alt}
+      className={className ?? 'w-full rounded-lg border border-gray-700'}
+      style={{ background: '#0b3a1f' }}
+    >
+      <defs>
+        <marker id="flecha" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffffff" />
+        </marker>
+      </defs>
+
+      {/* franjas de césped cada 5 yardas */}
+      {yardas
+        .filter((x) => x % 10 < 5)
+        .map((x) => (
+          <rect key={`f${x}`} x={0} y={py(x + 1, x1)} width={ANCHO} height={1} fill="#0e4524" opacity={0.55} />
+        ))}
+
+      {/* zonas de anotación */}
+      {x0 < 10 && <rect x={0} y={py(10, x1)} width={ANCHO} height={Math.min(10, 10 - x0)} fill={'#013369'} opacity={0.8} />}
+      {x1 > 110 && <rect x={0} y={0} width={ANCHO} height={Math.min(10, x1 - 110)} fill={'#013369'} opacity={0.8} />}
+
+      {/* líneas de yardas */}
+      {yardas.map((x) => {
+        const cinco = x % 5 === 0
+        const num = numeroYarda(x)
+        return (
+          <g key={`y${x}`}>
+            <line
+              x1={0} x2={ANCHO} y1={py(x, x1)} y2={py(x, x1)}
+              stroke="#fff" strokeWidth={cinco ? 0.14 : 0.05} opacity={cinco ? 0.55 : 0.22}
+            />
+            {/* marcas (hash) a cada yarda */}
+            <line x1={px(23.4) - 0.5} x2={px(23.4) + 0.5} y1={py(x, x1)} y2={py(x, x1)} stroke="#fff" strokeWidth={0.07} opacity={0.4} />
+            <line x1={px(29.9) - 0.5} x2={px(29.9) + 0.5} y1={py(x, x1)} y2={py(x, x1)} stroke="#fff" strokeWidth={0.07} opacity={0.4} />
+            {num !== null && (
+              <>
+                <text x={5} y={py(x, x1) + 0.8} fontSize={2.6} fill="#fff" opacity={0.22} textAnchor="middle" fontWeight={700}>{num}</text>
+                <text x={ANCHO - 5} y={py(x, x1) + 0.8} fontSize={2.6} fill="#fff" opacity={0.22} textAnchor="middle" fontWeight={700}>{num}</text>
+              </>
+            )}
+          </g>
+        )
+      })}
+
+      {/* bandas */}
+      <line x1={0.1} x2={0.1} y1={0} y2={alto} stroke="#fff" strokeWidth={0.25} opacity={0.7} />
+      <line x1={ANCHO - 0.1} x2={ANCHO - 0.1} y1={0} y2={alto} stroke="#fff" strokeWidth={0.25} opacity={0.7} />
+
+      {/* línea de golpeo */}
+      {scrimmage != null && (
+        <line x1={0} x2={ANCHO} y1={py(scrimmage, x1)} y2={py(scrimmage, x1)} stroke="#38bdf8" strokeWidth={0.18} strokeDasharray="0.8 0.5" opacity={0.9} />
+      )}
+
+      {/* líneas (flechas, distancias) */}
+      {lineas.map((l, i) => (
+        <g key={`l${i}`} opacity={l.opacidad ?? 1}>
+          <line
+            x1={px(l.y1)} y1={py(l.x1, x1)} x2={px(l.y2)} y2={py(l.x2, x1)}
+            stroke={l.color} strokeWidth={l.grosor ?? 0.25}
+            strokeDasharray={l.punteada || l.animada ? '0.9 0.6' : undefined}
+            className={l.animada ? 'trazo-animado' : undefined}
+            markerEnd={l.flecha ? 'url(#flecha)' : undefined}
+            strokeLinecap="round"
+          />
+          {l.etiqueta && (
+            <text
+              x={(px(l.y1) + px(l.y2)) / 2 + 0.6} y={(py(l.x1, x1) + py(l.x2, x1)) / 2}
+              fontSize={1.5} fill="#fff" fontWeight={700} stroke="#000" strokeWidth={0.3} paintOrder="stroke"
+            >
+              {l.etiqueta}
+            </text>
+          )}
+        </g>
+      ))}
+
+      {/* jugadores */}
+      {puntos.map((p) => {
+        const r = p.r ?? 1.15
+        const X = px(p.y)
+        const Y = py(p.x, x1)
+        const dx = p.orient != null ? -Math.cos((p.orient * Math.PI) / 180) : 0
+        const dy = p.orient != null ? -Math.sin((p.orient * Math.PI) / 180) : 0
+        return (
+          <g
+            key={p.id}
+            style={{
+              transform: `translate(${X}px, ${Y}px)`,
+              transition: suave ? 'transform 0.7s cubic-bezier(.4,0,.2,1)' : undefined,
+              cursor: p.onClick ? 'pointer' : undefined,
+              opacity: p.opacidad ?? 1,
+            }}
+            onClick={p.onClick}
+          >
+            {p.titulo && <title>{p.titulo}</title>}
+            {p.pulso && <circle r={r * 1.9} fill="none" stroke={p.color} strokeWidth={0.2} className="pulso-anillo" />}
+            {p.orient != null && (
+              <line x1={0} y1={0} x2={dx * r * 2.3} y2={dy * r * 2.3} stroke="#fff" strokeWidth={0.2} strokeLinecap="round" opacity={0.85} />
+            )}
+            {p.forma === 'cuadro' ? (
+              <rect x={-r} y={-r} width={r * 2} height={r * 2} rx={0.25} fill={p.color} stroke={p.borde ?? '#000'} strokeWidth={0.18} />
+            ) : p.forma === 'triangulo' ? (
+              <path d={`M 0 ${-r * 1.2} L ${r * 1.1} ${r * 0.9} L ${-r * 1.1} ${r * 0.9} Z`} fill={p.color} stroke={p.borde ?? '#000'} strokeWidth={0.18} />
+            ) : (
+              <circle r={r} fill={p.color} stroke={p.borde ?? '#000'} strokeWidth={0.18} />
+            )}
+            {p.etiqueta && (
+              <text y={r * 0.38} fontSize={r * 0.95} textAnchor="middle" fill={p.colorTexto ?? '#000'} fontWeight={800}>
+                {p.etiqueta}
+              </text>
+            )}
+            {p.texto && (
+              <text y={r + 1.5} fontSize={1.35} textAnchor="middle" fill="#fff" fontWeight={700} stroke="#000" strokeWidth={0.3} paintOrder="stroke">
+                {p.texto}
+              </text>
+            )}
+          </g>
+        )
+      })}
+
+      {/* balón */}
+      {balon && (
+        <ellipse cx={px(balon[1])} cy={py(balon[0], x1)} rx={0.55} ry={0.9} fill="#8b4513" stroke="#fff" strokeWidth={0.15} />
+      )}
+
+      {anotaciones}
+    </svg>
+  )
+}

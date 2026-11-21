@@ -6,3 +6,81 @@ body {
   background-color: #000000;
   color: #ffffff;
 }
+
+/* Animaciones de la cancha */
+@keyframes trazo {
+  to {
+    stroke-dashoffset: -3;
+  }
+}
+.trazo-animado {
+  animation: trazo 0.9s linear infinite;
+}
+
+@keyframes pulso {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+.pulso-anillo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulso 1.2s ease-out infinite;
+}
+
+@keyframes aparece {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.aparece {
+  animation: aparece 0.45s ease both;
+}
+
+.barra {
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Imprimir el plan de juego: solo la zona marcada, en claro */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .no-imprimir {
+    display: none !important;
+  }
+  .solo-imprimir {
+    display: block !important;
+  }
+  .tarjeta-imprimir {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #999 !important;
+    break-inside: avoid;
+  }
+}
+.solo-imprimir {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trazo-animado,
+  .pulso-anillo,
+  .aparece {
+    animation: none;
+  }
+  .barra {
+    transition: none;
+  }
+}
